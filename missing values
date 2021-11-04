@@ -1,0 +1,92 @@
+---
+title: "Data Preprocessing"
+output: html_notebook
+---
+ ###https://rpubs.com/moeransm/intro-iris
+
+
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(rsample)
+library(na.tools)
+library(SPECIES)
+library(gender)
+library( select)
+library(tidyr)
+library(generics)
+
+
+a<- read.csv("D:/ML/Transportation.csv.csv")
+View(a)
+skim(a)
+
+data <- a %>%
+  select(pop_mode , county_fips ,percent )
+print(data)
+
+data_split <- initial_split(data)
+data_train <- training(data_split)
+data_test <- testing(data_split)
+
+#missing values 
+
+data_train <- data_train %>%
+  mutate(BMI = county_fips / (percent = percent))
+data_train
+
+any(is.na(data_train))
+
+colSums(is.na(data_train))
+
+data_tr_imputed <- data_train %>%
+  drop_na(percent , county_fips) %>%
+  mutate(pop_mode = ifelse(is.na(BMI) , mean(BMI , na.rm = TRUE), BMI),
+       BMI = ifelse(is.na(BMI), mean(BMI , na.rm = TRUE) , BMI))
+skim(data_tr_imputed)
+
+# Encoding Categorlcal Data 
+iris
+skim(iris)
+
+iris %>% 
+  mutate(Species = as.integer(Species))
+
+iris%>%
+  mutate(species_versiolor = ifelse(Species = "versicolor") , 1 ,0),
+         sepcies_virignia = ifelse(Species = "virginica" , 1 , 0)) %>%
+  select(Species)
+ 
+
+#Feature sceling 
+
+normalize <- function(feature){
+  (feature - mean(feature)) / sd(feature)
+}
+
+datat_tr_imputed_normalize <- data_tr_imputed %>%
+  mutate_all(normalize)
+  
+datat_tr_imputed_normalize
+
+# Complete Preprocessing Pipeling 
+
+data_train_pipeline <- data_train %>%
+  mutate(BMI = county_fips / (percent = percent)) %>%
+  drop_na(percent , county_fips) %>%
+  mutate(pop_mode = ifelse(is.na(BMI) , mean(BMI , na.rm = TRUE), BMI),
+         BMI = ifelse(is.na(BMI), mean(BMI , na.rm = TRUE) , BMI)) %>%
+  mutate(gender_masculin = ifelse(gender == "masculine" , 1 , 0)) %>%
+  select(gender) %>%
+  mutate_all(normalize)
+
+data_recipe <- data_train %>%
+  recipe() %>%
+   step_mutate(BMI = county_fips / (percent = percent)) %>%
+   step_naomit(percent , county_fips) %>%
+   step_meanimpute(county_fips , BMI)%>%
+   step_dummy(gender) %>%
+   step_normalize(everything) %>%
+  prep() 
+
+juice(data_recipe)
